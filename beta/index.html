@@ -2871,7 +2871,9 @@
   // تأكيد، بيحط بصمته بدل ما يستنى الإيميل. السيرفر بيتأكد من التوقيع — البصمة نفسها مابتطلعش من الموبايل.
   var _pkSupported_ = null;
   function pkSupported_(){
-    if(_pkSupported_) return _pkSupported_;
+    // الدخول بالبصمة (passkey) كان محتاج تحقّق تشفيري على السيرفر (كان في Google Apps Script القديم)
+    // مش متاح على Supabase دلوقتي، فمعطّلينه هنا بدل ما نسيب زرار معطوب في الواجهة
+    return Promise.resolve(false);
     _pkSupported_ = new Promise(function(resolve){
       try{
         if(!window.PublicKeyCredential || !navigator.credentials || !window.isSecureContext ||
@@ -6498,11 +6500,20 @@
         const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
         const base64Data = dataUrl.split(',')[1];
         showLoading(true);
-        callApi('uploadMyPhoto', [state.auth, base64Data, 'image/jpeg'])
+        // رفع الصورة مباشرة على Supabase Storage (بدل جوجل)، وبعدين تسجيل الرابط في بروفايل المندوب
+        const photoPath = encodeURIComponent(((state.auth && state.auth.email) || 'unknown').toLowerCase()) + '/' + Date.now() + '.jpg';
+        fetch(SB_RPC_URL_.replace('/rest/v1/rpc/api', '/storage/v1/object/touch-photos/' + photoPath), {
+          method: 'POST',
+          headers: { apikey: SB_PUBLIC_KEY_, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
+          body: Uint8Array.from(atob(base64Data), function(c){ return c.charCodeAt(0); }),
+        })
+          .then(function(res){ if(!res.ok) throw new Error('تعذر رفع الصورة، حاول تاني'); })
+          .then(function(){
+            const publicUrl = SB_RPC_URL_.replace('/rest/v1/rpc/api', '/storage/v1/object/public/touch-photos/' + photoPath);
+            return callApi('setMyPhoto', [state.auth, publicUrl]).then(function(){ return { url: publicUrl }; });
+          })
           .then(function(result){
             showLoading(false);
-            // السيرفر بيرجّع الرابط في result.url (مش photoUrl) — كان بيتقري غلط فالصورة الجديدة
-            // مكانتش بتظهر غير بعد ما التطبيق يتقفل ويتفتح تاني
             const newUrl = result.url || result.photoUrl;
             const imgEl = document.getElementById('profilePhotoImg');
             imgEl.src = newUrl;
