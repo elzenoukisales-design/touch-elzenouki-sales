@@ -3453,7 +3453,7 @@
   // ============ تارجت الأصناف بالمندوب + بونص (للمشرفين) — دوال جديدة بالكامل،
   // بتنادي دوال SQL جديدة (api_item_targets_*) من غير ما تلمس api/api_core الأصليين ============
   function callDirectRpc_(fn, args){
-    return fetch('https://llbvttieimysqxyrdwph.supabase.co/rest/v1/rpc/' + fn, {
+    return fetch(SB_RPC_URL_.replace('/rpc/api', '/rpc/' + fn), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SB_PUBLIC_KEY_ },
       body: JSON.stringify({ p_args: args || [] }),
