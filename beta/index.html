@@ -1224,6 +1224,9 @@
       <button type="button" id="jardHomeBtn" onclick="openScreen('jard')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e6bf6a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 11h6M9 15h4"></path></svg>جرد</button>
     </div>
 
+    <div class="c2Big" id="omsBtnWrap" hidden><button type="button" id="omsHomeBtn" onclick="openScreen('oms')" style="background:#2b5fa8;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path></svg>فاتورة OMS (من مخزن الإدارة)</button></div>
+
     <div class="c2Sheet">
       <span class="grip"></span>
       <button type="button" class="c2Item" id="staleLink" onclick="openScreen('stale')"><span class="ic" style="background:#fbe9e5"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3412e" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><span class="title">الرواكد</span><span class="chev"></span></button>
@@ -2050,12 +2053,13 @@
   // طلبات بتكتب في الشيت: بنطلب من جوجل ينسخ التغيير لـ Supabase فورًا (عشان الشاشات تبان محدثة على طول)
   const SB_WRITE_ACTIONS_ = {addSaleItem:1, updateSaleItem:1, deleteSaleItem:1, savePrices:1,
     saveStaleReason:1, saveMyProfile:1, uploadMyPhoto:1, addRep:1, setRepPin:1, setRepAdmin:1, deleteRep:1, addAsnaf:1, addSuggestion:1,
-    addProductDescription:1, deleteProductDescription:1, setAdProduct:1, clearAd:1, passkeyRegisterFinish:1, passkeyClearMine:1, setRepSupervisors:1};
+    addProductDescription:1, deleteProductDescription:1, setAdProduct:1, clearAd:1, setRepSupervisors:1};
   // التسجيل نفسه (فاتورة/جرد/توريد) بقى على Supabase بس — ومفيش نسخة بتروح لجوجل شيت.
   // لو النت قطع، بنعيد نفس الطلب (بنفس رقمه المرجعي، فمستحيل يتسجل مرتين) — ومنبعتهوش لجوجل أبدًا.
   const SB_WRITE_ONLY_ = {finalizeInvoice:1, saveJard:1, saveTawrid:1,
     // الإعدادات بقت على Supabase بس (مفيش جوجل شيت خالص) — تسجيل الدخول نفسه بقى على Supabase (كود+اسم) بدل جوجل
-    login:1, verifyLoginOtp:1, resendLoginOtp:1, listRepNames:1, savePrices:1, saveStaleReason:1, saveMyProfile:1, addSuggestion:1, deleteProductDescription:1, setAdProduct:1, clearAd:1,
+    login:1, verifyLoginOtp:1, resendLoginOtp:1, passkeyRegisterStart:1, passkeyRegisterFinish:1, passkeyClearMine:1, verifyLoginPasskey:1,
+    listRepNames:1, savePrices:1, saveStaleReason:1, saveMyProfile:1, addSuggestion:1, deleteProductDescription:1, setAdProduct:1, clearAd:1,
     addRep:1, setRepName:1, setRepPin:1, setRepBranch:1, setRepFullName:1, setRepJobCode:1, setRepAdmin:1, setRepSupervisors:1, deleteRep:1, addAsnaf:1, setItemSeason:1,
     setBranchLocation:1, checkIn:1, checkOut:1, setAttendanceStartDate:1, setRepLeave:1, removeRepLeave:1, saveTarget:1};
   function callSbWrite_(action, args, attempt){
@@ -2657,6 +2661,13 @@
   // (لازم تتطابق مع PROTECTED_OWNER_EMAIL_ في Code.gs بالظبط)
   const OWNER_EMAIL_ = 'elzenoukisales@gmail.com';
 
+  // مندوب بي تك: أي فرع من فروعه اسمه فيه "بي تك" — دول بس اللي بيشتغلوا بفاتورة OMS
+  function isBeTechRep_(user){
+    if(!user) return false;
+    const list = (user.branches && user.branches.length) ? user.branches : [user.branch];
+    return list.some(function(b){ return String(b || '').indexOf('بي تك') !== -1; });
+  }
+
   function applyLoggedInUser(user, isAdmin, targetProgress, homeStats){
     state.homeStats_ = homeStats || state.homeStats_ || null;
     state.user = user;
@@ -2677,6 +2688,8 @@
     document.getElementById('returnsHomeBtn').hidden = state.isAdmin;
     document.getElementById('tawridHomeBtn').hidden = state.isAdmin;
     document.getElementById('jardHomeBtn').hidden = state.isAdmin;
+    // فاتورة OMS (بيع من مخزن الإدارة من غير ما تنقص من مخزون المندوب) متاحة بس لمناديب بي تك
+    document.getElementById('omsBtnWrap').hidden = state.isAdmin || !isBeTechRep_(user);
     document.getElementById('pricesLink').hidden = state.isAdmin;
     document.getElementById('invoiceHistoryLink').hidden = state.isAdmin;
     document.getElementById('profileLink').hidden = false; // إعداداتي متاحة للكل (مندوب ومشرف وصاحب الحساب)
@@ -2859,9 +2872,7 @@
   // تأكيد، بيحط بصمته بدل ما يستنى الإيميل. السيرفر بيتأكد من التوقيع — البصمة نفسها مابتطلعش من الموبايل.
   var _pkSupported_ = null;
   function pkSupported_(){
-    // الدخول بالبصمة (passkey) كان محتاج تحقّق تشفيري على السيرفر (كان في Google Apps Script القديم)
-    // مش متاح على Supabase دلوقتي، فمعطّلينه هنا بدل ما نسيب زرار معطوب في الواجهة
-    return Promise.resolve(false);
+    if(_pkSupported_) return _pkSupported_;
     _pkSupported_ = new Promise(function(resolve){
       try{
         if(!window.PublicKeyCredential || !navigator.credentials || !window.isSecureContext ||
@@ -5597,7 +5608,7 @@
   // شاشة المراجعة (finalizeInvoice بتكتب كل الأصناف مرة واحدة وتقفل الفاتورة فورًا).
   function renderInvoice(name){
     const isReturns = (name === 'returns');
-    document.getElementById('pageTitle').textContent = isReturns ? 'تسجيل مرتجع' : 'تسجيل مبيعات';
+    document.getElementById('pageTitle').textContent = isReturns ? 'تسجيل مرتجع' : (name === 'oms' ? 'فاتورة OMS' : 'تسجيل مبيعات');
     document.getElementById('pageSub').textContent = state.user.name;
     document.getElementById('invBadge').textContent = state.user.name;
 
@@ -5642,7 +5653,7 @@
         const displayQty = state.finalized ? qty : (isReturns ? -qty : qty);
         const neg = displayQty < 0;
         const returnKind = state.finalized ? it['نوع المرتجع'] : it.returnKind;
-        const kindSuffix = (isReturns && (returnKind === 'تالف' || returnKind === 'رجوع للشركة')) ? ' (' + returnKind + ')' : '';
+        const kindSuffix = (isReturns && (returnKind === 'تالف' || returnKind === 'رجوع للشركة')) ? ' (' + returnKind + ')' : (state.screen === 'oms' ? ' (OMS)' : '');
         const reason = isReturns ? (state.finalized ? it['سبب المرتجع'] : it.returnReason) : '';
         const reasonHtml = reason ? '<div class="meta">السبب: ' + escapeHtml(reason) + '</div>' : '';
         return '<div class="itemRow' + (neg ? ' neg' : '') + '">' +
@@ -5784,7 +5795,7 @@
   // المندوب شاف تحذير "نفس الفاتورة اتسجلت النهارده" وأكّد إنها مش تكرار
   function doFinalizeRequest_(confirmDuplicate){
     showLoading(true);
-    const type = (state.screen === 'returns') ? 'مرتجع' : 'بيع';
+    const type = (state.screen === 'returns') ? 'مرتجع' : (state.screen === 'oms' ? 'OMS' : 'بيع');
     const requestId = state.pendingFinalizeId;
     callApi('finalizeInvoice', [state.auth, type, state.draftItems, requestId, !!confirmDuplicate])
       .then(function(result){
