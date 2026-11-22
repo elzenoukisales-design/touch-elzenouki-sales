@@ -2055,7 +2055,7 @@
   // لو النت قطع، بنعيد نفس الطلب (بنفس رقمه المرجعي، فمستحيل يتسجل مرتين) — ومنبعتهوش لجوجل أبدًا.
   const SB_WRITE_ONLY_ = {finalizeInvoice:1, saveJard:1, saveTawrid:1,
     // الإعدادات بقت على Supabase بس (مفيش جوجل شيت خالص) — تسجيل الدخول نفسه بقى على Supabase (كود+اسم) بدل جوجل
-    login:1, listRepNames:1, savePrices:1, saveStaleReason:1, saveMyProfile:1, addSuggestion:1, deleteProductDescription:1, setAdProduct:1, clearAd:1,
+    login:1, verifyLoginOtp:1, resendLoginOtp:1, listRepNames:1, savePrices:1, saveStaleReason:1, saveMyProfile:1, addSuggestion:1, deleteProductDescription:1, setAdProduct:1, clearAd:1,
     addRep:1, setRepName:1, setRepPin:1, setRepBranch:1, setRepFullName:1, setRepJobCode:1, setRepAdmin:1, setRepSupervisors:1, deleteRep:1, addAsnaf:1, setItemSeason:1,
     setBranchLocation:1, checkIn:1, checkOut:1, setAttendanceStartDate:1, setRepLeave:1, removeRepLeave:1, saveTarget:1};
   function callSbWrite_(action, args, attempt){
