@@ -5135,6 +5135,7 @@
     'جرد': { label: 'جرد', neg: false },
     'توريد': { label: 'توريد', neg: false },
     'رجوع للشركة': { label: 'رجوع للشركة', neg: true },
+    'OMS': { label: 'فاتورة OMS', neg: false },
   };
 
   function renderInvoiceHistory(invoices, multiBranch){
@@ -5158,7 +5159,7 @@
       const meta = HISTORY_TYPE_META[inv.type] || { label: inv.type, neg: false };
       const sidAttr = escapeHtml(inv.sessionId).replace(/'/g, "\\'");
       // بيع/مرتجع بيعرضوا إجمالي مبلغ، جرد/توريد بيعرضوا إجمالي كمية — حسب النوع
-      const isMoneyType = (inv.type === 'بيع' || inv.type === 'مرتجع');
+      const isMoneyType = (inv.type === 'بيع' || inv.type === 'مرتجع' || inv.type === 'OMS');
       const valueLabel = isMoneyType ? fmt(inv.total) : (fmt(inv.totalQty) + ' قطعة');
       return (
         '<div class="itemRow' + (meta.neg ? ' neg' : '') + '" style="flex-direction:column; align-items:stretch; gap:8px;">' +
@@ -5884,9 +5885,9 @@
   // finalizeInvoice — بتُستخدم فور الترحيل في نفس الشاشة، وكمان من شاشة "سجل فواتيري"
   // (كنسخة احتياطية تانية) عشان منكررش منطق البناء في مكانين
   function buildInvoiceExcelOpts(result, isReturns){
-    const label = isReturns ? 'مرتجع' : 'مبيعات';
+    const label = isReturns ? 'مرتجع' : (result.type === 'OMS' ? 'فاتورة OMS' : 'مبيعات');
     const rows = result.items.map(it => {
-      const kindSuffix = (isReturns && (it['نوع المرتجع'] === 'تالف' || it['نوع المرتجع'] === 'رجوع للشركة')) ? ' (' + it['نوع المرتجع'] + ')' : '';
+      const kindSuffix = (isReturns && (it['نوع المرتجع'] === 'تالف' || it['نوع المرتجع'] === 'رجوع للشركة')) ? ' (' + it['نوع المرتجع'] + ')' : (it['نوع المرتجع'] === 'OMS' ? ' (OMS)' : '');
       return isReturns
         ? [it['اسم الصنف'] + kindSuffix, it['سبب المرتجع'] || '—', it['الكمية'], it['السعر'], it['الاجمالي']]
         : [it['اسم الصنف'] + kindSuffix, it['الكمية'], it['السعر'], it['الاجمالي']];
