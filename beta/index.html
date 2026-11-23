@@ -2213,6 +2213,12 @@
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ESC_MAP_[c]);
   }
+  // بيدوّر على كود الصنف من الكتالوج (state.asnaf) بالاسم — للشاشات/الإكسلات اللي معندهاش
+  // الكود جاهز من السيرفر (زي الجرد والتوريد، اللي بترجع العدد بس من غير تفاصيل الأصناف)
+  function codeForItemName_(name){
+    const it = (state.asnaf || []).find(function(a){ return a.name === name; });
+    return it ? (it.code || '') : '';
+  }
   function fmt(n){
     n = Number(n) || 0;
     // en-US بدل ar-EG عشان الأرقام تفضل بالإنجليزي (0123..) مش بالهندي العربي (٠١٢٣..)
@@ -3554,7 +3560,7 @@
   function renderItemBalancesReport_(d){
     var rows = d.rows || [];
     document.getElementById('ibResultCard').hidden = false;
-    document.getElementById('ibResultTitle').textContent = 'رصيد "' + d.itemName + '" — ' + rows.length + ' مندوب';
+    document.getElementById('ibResultTitle').textContent = 'رصيد "' + d.itemName + (d.itemCode ? ' (' + d.itemCode + ')' : '') + '" — ' + rows.length + ' مندوب';
     document.getElementById('ibTotal').textContent = fmt(d.total);
     if(!rows.length){
       document.getElementById('ibList').innerHTML = '<div class="empty">مفيش رصيد من الصنف ده عند أي مندوب دلوقتي</div>';
@@ -3581,7 +3587,7 @@
     var opts = {
       fileName: 'رصيد ' + d.itemName + ' بالمندوب',
       reportTitle: 'تقرير الأرصدة — ' + d.itemName,
-      meta: [['الصنف', d.itemName], ['التاريخ', new Date().toLocaleDateString('ar-EG')]],
+      meta: [['الصنف', d.itemName], ['كود الصنف', d.itemCode || ''], ['التاريخ', new Date().toLocaleDateString('ar-EG')]],
       headers: ['المندوب', 'الفرع', 'الرصيد', 'ملاحظة'],
       rows: rows,
       totalsLabel: 'إجمالي الرصيد عند كل المناديب',
@@ -4403,7 +4409,7 @@
           var mainNote = (r.requireMainPct != null && !r.mainOk)
             ? '<small style="display:block; color:var(--muted);">محتاج ' + fmt(r.requireMainPct) + '% من الهدف الأساسي، وهو حقق ' + (r.mainPct != null ? fmt(r.mainPct) + '%' : 'مفيش هدف أساسي متسجل') + '</small>' : '';
           return '<div class="nums" style="margin-top:6px; color:' + (ok ? '#2b7a4f' : 'var(--muted)') + ';">' +
-            '<span>' + escapeHtml(r.name || r.code) + mainNote + '</span>' +
+            '<span>' + escapeHtml(r.name || r.code) + (r.name && r.code ? ' <small style="font-weight:400;">(' + escapeHtml(r.code) + ')</small>' : '') + mainNote + '</span>' +
             '<b>' + fmt(r.achieved) + (r.target != null ? ' / ' + fmt(r.target) + (r.pct != null ? ' (' + r.pct + '%)' : '') : ' قطعة') + '</b>' +
             (ok ? '<span>✔ بونص ' + fmt(r.bonusEarned) + ' (' + fmt(r.bonus) + '/قطعة × ' + fmt(r.achieved) + ')</span>' : '<span>— مفيش بونص</span>') + '</div>';
         }).join('') +
@@ -4425,15 +4431,15 @@
       var jobCode = first.jobCode || '';
       var repBonus = repRows.reduce(function(t, r){ return t + Number(r.bonusEarned || 0); }, 0);
       repRows.forEach(function(r){
-        rows.push([r.rep, fullName, jobCode, branch, r.name || r.code, r.target != null ? Number(r.target) : 'من غير تارجت', Number(r.achieved), r.pct != null ? Number(r.pct) : '', Number(r.bonusEarned || 0)]);
+        rows.push([r.rep, fullName, jobCode, branch, r.code || '', r.name || r.code, r.target != null ? Number(r.target) : 'من غير تارجت', Number(r.achieved), r.pct != null ? Number(r.pct) : '', Number(r.bonusEarned || 0)]);
       });
-      rows.push(['إجمالي ' + rep, '', '', '', '', '', '', '', Number(repBonus)]);
+      rows.push(['إجمالي ' + rep, '', '', '', '', '', '', '', '', Number(repBonus)]);
     });
     var opts = {
       fileName: 'تارجت الأصناف - ' + d.monthKey,
       reportTitle: 'تقرير تارجت الأصناف والبونص',
       meta: [['الشهر', d.monthKey], ['التاريخ', new Date().toLocaleDateString('ar-EG')]],
-      headers: ['المندوب', 'الاسم الكامل', 'الكود الوظيفي', 'الفرع', 'الصنف', 'التارجت', 'المتحقق', 'النسبة %', 'البونص المستحق'],
+      headers: ['المندوب', 'الاسم الكامل', 'الكود الوظيفي', 'الفرع', 'كود الصنف', 'الصنف', 'التارجت', 'المتحقق', 'النسبة %', 'البونص المستحق'],
       rows: rows,
       totalsLabel: 'إجمالي البونص المستحق (كل المناديب)',
       totalsValue: Number(d.totalBonus || 0),
@@ -4539,7 +4545,7 @@
             return (
               '<div class="itemRow" style="flex-direction:column; align-items:stretch; gap:4px;">' +
                 '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-                  '<div class="name">' + escapeHtml(it.name) + '</div>' +
+                  '<div class="name">' + escapeHtml(it.name) + (codeForItemName_(it.name) ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(codeForItemName_(it.name)) + ')</span>' : '') + '</div>' +
                   '<div class="meta">' + escapeHtml(it.date) + '</div>' +
                 '</div>' +
                 '<div class="meta">' + escapeHtml(it.branch) + ' • ' + escapeHtml(it.rep) + '</div>' +
@@ -4914,7 +4920,7 @@
       const lastSaleNote = it.lastSaleDate ? (' · آخر بيع ' + escapeHtml(it.lastSaleDate)) : '';
       return '<div class="itemRow">' +
         '<div>' +
-          '<div class="name">' + escapeHtml(it.name) + '</div>' +
+          '<div class="name">' + escapeHtml(it.name) + (it.code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(it.code) + ')</span>' : '') + '</div>' +
           '<div class="meta">' + it.salesCount + ' عملية بيع' + lastSaleNote + '</div>' +
         '</div>' +
         '<div style="text-align:left;">' +
@@ -5106,7 +5112,7 @@
         return (
           '<div class="itemRow' + (neg ? ' neg' : '') + '" style="flex-direction:column; align-items:stretch; gap:2px;">' +
             '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-              '<div class="name">' + escapeHtml(it.name) + seasonBadge + '</div>' +
+              '<div class="name">' + escapeHtml(it.name) + (it.code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(it.code) + ')</span>' : '') + seasonBadge + '</div>' +
               '<div class="total">' + fmt(it.balance) + '</div>' +
             '</div>' +
             note +
@@ -5138,7 +5144,7 @@
     }
     showLoading(true);
     var rows = data.items.map(function(it){
-      return [it.name, Number(it.balance), it.hasBaseline ? 'بجرد رسمي' : 'من غير جرد رسمي'];
+      return [it.code || '', it.name, Number(it.balance), it.hasBaseline ? 'بجرد رسمي' : 'من غير جرد رسمي'];
     });
     var opts = {
       fileName: 'أرصدة - ' + data.repName + (data.branch ? ' - ' + data.branch : ''),
@@ -5148,7 +5154,7 @@
         ['الفرع', data.branch || state.user.branch || '—'],
         ['التاريخ', new Date().toLocaleDateString('ar-EG')],
       ],
-      headers: ['اسم الصنف', 'الرصيد', 'ملاحظة'],
+      headers: ['الكود', 'اسم الصنف', 'الرصيد', 'ملاحظة'],
       rows: rows,
       totalsLabel: 'إجمالي عدد الأصناف',
       totalsValue: rows.length,
@@ -5233,7 +5239,7 @@
   // جرد/توريد (result.qtyLabel = 'العدد' أو 'الكمية'، مفيش سعر/إجمالي مالي هنا خالص)
   function buildJardTawridExcelOptsFromResult_(result){
     const label = result.qtyLabel || 'الكمية';
-    const rows = result.items.map(it => [it['اسم الصنف'], it[label]]);
+    const rows = result.items.map(it => [it['كود الصنف'] || codeForItemName_(it['اسم الصنف']), it['اسم الصنف'], it[label]]);
     return {
       fileName: result.type + ' - ' + safeDateForFile(result.date) + ' - ' + (result.repName || state.user.name),
       reportTitle: 'تقرير ' + result.type,
@@ -5243,7 +5249,7 @@
         ['التاريخ', result.date],
         ['عدد الأصناف', result.items.length],
       ],
-      headers: ['اسم الصنف', label],
+      headers: ['الكود', 'اسم الصنف', label],
       rows: rows,
       totalsLabel: 'إجمالي ' + label,
       totalsValue: result.total,
@@ -5699,6 +5705,7 @@
     } else {
       list.innerHTML = source.map((it, idx) => {
         const name = state.finalized ? it['اسم الصنف'] : it.itemName;
+        const code = state.finalized ? (it['كود الصنف'] || '') : codeForItemName_(name);
         const qty = state.finalized ? Number(it['الكمية']) : Number(it.qty);
         const price = state.finalized ? Number(it['السعر']) : Number(it.price);
         const total = state.finalized ? Number(it['الاجمالي']) : draftLineValue_(it, isReturns);
@@ -5710,7 +5717,7 @@
         const reasonHtml = reason ? '<div class="meta">السبب: ' + escapeHtml(reason) + '</div>' : '';
         return '<div class="itemRow' + (neg ? ' neg' : '') + '">' +
           '<div>' +
-            '<div class="name">' + escapeHtml(name) + escapeHtml(kindSuffix) + '</div>' +
+            '<div class="name">' + escapeHtml(name) + (code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(code) + ')</span>' : '') + escapeHtml(kindSuffix) + '</div>' +
             '<div class="meta">' + fmt(displayQty) + ' × ' + fmt(price) + '</div>' +
             reasonHtml +
           '</div>' +
@@ -5939,9 +5946,10 @@
     const label = isReturns ? 'مرتجع' : (result.type === 'OMS' ? 'فاتورة OMS' : 'مبيعات');
     const rows = result.items.map(it => {
       const kindSuffix = (isReturns && (it['نوع المرتجع'] === 'تالف' || it['نوع المرتجع'] === 'رجوع للشركة')) ? ' (' + it['نوع المرتجع'] + ')' : (it['نوع المرتجع'] === 'OMS' ? ' (OMS)' : '');
+      const code = it['كود الصنف'] || codeForItemName_(it['اسم الصنف']);
       return isReturns
-        ? [it['اسم الصنف'] + kindSuffix, it['سبب المرتجع'] || '—', it['الكمية'], it['السعر'], it['الاجمالي']]
-        : [it['اسم الصنف'] + kindSuffix, it['الكمية'], it['السعر'], it['الاجمالي']];
+        ? [code, it['اسم الصنف'] + kindSuffix, it['سبب المرتجع'] || '—', it['الكمية'], it['السعر'], it['الاجمالي']]
+        : [code, it['اسم الصنف'] + kindSuffix, it['الكمية'], it['السعر'], it['الاجمالي']];
     });
     return {
       // لو الفاتورة متطابقة بنسبة كبيرة مع فاتورة تانية نفس اليوم — الصورة والإكسل بيطلعوا أحمر
@@ -5954,7 +5962,7 @@
         ['التاريخ', result.date],
         ['نوع العملية', label],
       ],
-      headers: isReturns ? ['اسم الصنف', 'سبب المرتجع', 'الكمية', 'السعر', 'الاجمالي'] : ['اسم الصنف', 'الكمية', 'السعر', 'الاجمالي'],
+      headers: isReturns ? ['الكود', 'اسم الصنف', 'سبب المرتجع', 'الكمية', 'السعر', 'الاجمالي'] : ['الكود', 'اسم الصنف', 'الكمية', 'السعر', 'الاجمالي'],
       rows: rows,
       totalsLabel: 'الإجمالي',
       totalsValue: result.total,
@@ -6015,15 +6023,16 @@
       list.innerHTML = '<div class="empty">لسه مفيش أصناف مضافة للتوريد</div>';
       return;
     }
-    list.innerHTML = state.tawridItems.map((it, idx) => (
-      '<div class="itemRow">' +
+    list.innerHTML = state.tawridItems.map((it, idx) => {
+      const code = codeForItemName_(it.itemName);
+      return '<div class="itemRow">' +
         '<div>' +
-          '<div class="name">' + escapeHtml(it.itemName) + '</div>' +
+          '<div class="name">' + escapeHtml(it.itemName) + (code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(code) + ')</span>' : '') + '</div>' +
           '<div class="meta">الكمية: ' + fmt(it.qty) + '</div>' +
         '</div>' +
         (state.tawridFinalized ? '' : '<button class="delBtn" onclick="handleDeleteTawridItem(' + idx + ')">✕</button>') +
-      '</div>'
-    )).join('');
+      '</div>';
+    }).join('');
   }
 
   function handleAddTawridItem(){
@@ -6072,7 +6081,7 @@
   // بيبني خيارات ملف إكسل التوريد من أصناف الشاشة نفسها (لسه في الذاكرة عند العميل) — بنستخدمها
   // بدل نتيجة saveTawrid لأنها مش راجعة فيها تفاصيل الأصناف، بس تأكيد الحفظ
   function tawridExcelOptsFromState_(){
-    const rows = state.tawridItems.map(it => [it.itemName, it.qty]);
+    const rows = state.tawridItems.map(it => [codeForItemName_(it.itemName), it.itemName, it.qty]);
     const total = state.tawridItems.reduce((s, it) => s + Number(it.qty), 0);
     const date = (state.tawridResult && state.tawridResult.date) || '';
     const repName = (state.tawridResult && state.tawridResult.repName) || state.user.name;
@@ -6085,7 +6094,7 @@
         ['التاريخ', date],
         ['عدد الأصناف', state.tawridItems.length],
       ],
-      headers: ['اسم الصنف', 'الكمية'],
+      headers: ['الكود', 'اسم الصنف', 'الكمية'],
       rows: rows,
       totalsLabel: 'إجمالي الكمية',
       totalsValue: total,
@@ -6153,7 +6162,7 @@
         .filter(a => savedMap[a.name] != null)
         .map(a => (
           '<div class="itemRow">' +
-            '<div class="name">' + escapeHtml(a.name) + '</div>' +
+            '<div class="name">' + escapeHtml(a.name) + (a.code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(a.code) + ')</span>' : '') + '</div>' +
             '<div class="total">' + fmt(savedMap[a.name]) + '</div>' +
           '</div>'
         )).join('');
@@ -6174,7 +6183,7 @@
       const placeholder = hasExpected ? ('تقريبًا ' + fmt(a.expectedBalance)) : 'العدد';
       return (
         '<div style="margin-bottom:16px;">' +
-          '<label>' + escapeHtml(a.name) + '</label>' +
+          '<label>' + escapeHtml(a.name) + (a.code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(a.code) + ')</span>' : '') + '</label>' +
           expectedHtml +
           '<input type="text" inputmode="numeric" dir="ltr" class="jardCountRowInput ltrNum" data-name="' + escapeHtml(a.name) + '" placeholder="' + escapeHtml(placeholder) + '">' +
         '</div>'
@@ -6261,7 +6270,7 @@
 
   // بيبني خيارات ملف إكسل الجرد من أصناف الشاشة نفسها (اللي اتحفظت فعلاً في state.jardItems)
   function jardExcelOptsFromState_(){
-    const rows = state.jardItems.map(it => [it.itemName, it.count]);
+    const rows = state.jardItems.map(it => [codeForItemName_(it.itemName), it.itemName, it.count]);
     const total = state.jardItems.reduce((s, it) => s + Number(it.count), 0);
     const date = (state.jardResult && state.jardResult.date) || '';
     const repName = (state.jardResult && state.jardResult.repName) || state.user.name;
@@ -6274,7 +6283,7 @@
         ['التاريخ', date],
         ['عدد الأصناف', state.jardItems.length],
       ],
-      headers: ['اسم الصنف', 'العدد'],
+      headers: ['الكود', 'اسم الصنف', 'العدد'],
       rows: rows,
       totalsLabel: 'إجمالي العدد',
       totalsValue: total,
@@ -6375,7 +6384,7 @@
       const val = (saved != null) ? saved : '';
       return (
         '<div style="margin-bottom:14px;">' +
-          '<label>' + escapeHtml(a.name) + '</label>' +
+          '<label>' + escapeHtml(a.name) + (a.code ? ' <span class="meta" style="font-weight:400;">(' + escapeHtml(a.code) + ')</span>' : '') + '</label>' +
           '<input type="text" inputmode="decimal" dir="ltr" class="priceRowInput ltrNum" data-name="' + escapeHtml(a.name) + '" value="' + val + '" placeholder="اكتب سعرك لهذا الصنف">' +
         '</div>'
       );
