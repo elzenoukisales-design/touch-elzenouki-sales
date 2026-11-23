@@ -3962,6 +3962,23 @@
     var map = state.repFullNameMap_ || {};
     return map[name] || name;
   }
+  // بيبني <optgroup> لكل فرع عشان المشرف يلاقي مندوب فرع معيّن (زي فروع كارفور) بسهولة من
+  // غير ما يحتاج يعرف اسمه الشخصي — كل فرع بيبان كعنوان مجموعة فوق مناديبه
+  function buildRepOptionsByBranch_(reps, selectedName, dispFn){
+    var groups = {}, order = [];
+    (reps || []).forEach(function(r){
+      var b = (r && r.branch) || 'بلا فرع';
+      if(!groups[b]){ groups[b] = []; order.push(b); }
+      groups[b].push(r.name);
+    });
+    return order.map(function(b){
+      var opts = groups[b].map(function(n){
+        var label = dispFn ? dispFn(n) : n;
+        return '<option value="' + escapeHtml(n) + '"' + (n === selectedName ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+      }).join('');
+      return '<optgroup label="' + escapeHtml(b) + '">' + opts + '</optgroup>';
+    }).join('');
+  }
   function loadAttendance_(repName, monthKey){
     document.getElementById('pageTitle').textContent = 'الحضور والانصراف';
     document.getElementById('pageSub').textContent = state.user.name;
@@ -3977,9 +3994,7 @@
           pickerCard.hidden = false;
           var sel = document.getElementById('attRepSelect');
           var allOpt = '<option value="__ALL__"' + (data.repName === '__ALL__' ? ' selected' : '') + '>📊 كل المناديب</option>';
-          sel.innerHTML = allOpt + data.reps.map(function(r){
-            return '<option value="' + escapeHtml(r) + '"' + (r === data.repName ? ' selected' : '') + '>' + escapeHtml(dispRepName_(r)) + '</option>';
-          }).join('');
+          sel.innerHTML = allOpt + buildRepOptionsByBranch_(data.reps, data.repName, dispRepName_);
         } else {
           pickerCard.hidden = true;
         }
@@ -4519,10 +4534,7 @@
         if (data.reps && data.reps.length){
           pickerCard.hidden = false;
           var sel = document.getElementById('statsRepSelect');
-          sel.innerHTML = data.reps.map(function(r){
-            var sel2 = (r === data.repName) ? ' selected' : '';
-            return '<option value="' + escapeHtml(r) + '"' + sel2 + '>' + escapeHtml(r) + '</option>';
-          }).join('');
+          sel.innerHTML = buildRepOptionsByBranch_(data.reps, data.repName);
         } else {
           pickerCard.hidden = true;
         }
@@ -4793,10 +4805,7 @@
           pickerCard.hidden = false;
           var sel = document.getElementById('itemSalesRepSelect');
           var allOpt = '<option value="__ALL__"' + (data.repName === '__ALL__' ? ' selected' : '') + '>📊 كل المناديب (الإجمالي)</option>';
-          sel.innerHTML = allOpt + data.reps.map(function(r){
-            var sel2 = (r === data.repName) ? ' selected' : '';
-            return '<option value="' + escapeHtml(r) + '"' + sel2 + '>' + escapeHtml(r) + '</option>';
-          }).join('');
+          sel.innerHTML = allOpt + buildRepOptionsByBranch_(data.reps, data.repName);
         } else {
           pickerCard.hidden = true;
         }
@@ -5000,10 +5009,7 @@
         if (data.reps && data.reps.length){
           pickerCard.hidden = false;
           var sel = document.getElementById('balancesRepSelect');
-          sel.innerHTML = data.reps.map(function(r){
-            var sel2 = (r === data.repName) ? ' selected' : '';
-            return '<option value="' + escapeHtml(r) + '"' + sel2 + '>' + escapeHtml(r) + '</option>';
-          }).join('');
+          sel.innerHTML = buildRepOptionsByBranch_(data.reps, data.repName);
         } else {
           pickerCard.hidden = true;
         }
