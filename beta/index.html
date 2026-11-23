@@ -1391,7 +1391,14 @@
   <!-- ============ شاشة مبيعاتي (مشاهدة فقط) ============ -->
   <div id="viewMyStats" hidden>
     <div class="card" id="statsRepPickerCard" hidden>
-      <div class="cardTitle">اختار المندوب</div>
+      <div class="cardTitle">فلتر الحساب</div>
+      <select id="statsRepSelectAccFilter" onchange="renderFilteredRepSelect_('statsRepSelect')">
+        <option value="">كل الحسابات</option>
+        <option value="بي تك">بي تك</option>
+        <option value="كارفور">كارفور</option>
+        <option value="المرشدي">المرشدي</option>
+      </select>
+      <div class="cardTitle" style="margin-top:10px;">اختار المندوب</div>
       <select id="statsRepSelect" onchange="loadMyStats(this.value)"></select>
     </div>
     <div class="card">
@@ -1441,7 +1448,14 @@
   <!-- ============ شاشة مبيعات الأصناف الشهرية (تجميع لكل صنف بفلتر شهر) ============ -->
   <div id="viewItemSales" hidden>
     <div class="card" id="itemSalesRepPickerCard" hidden>
-      <div class="cardTitle">اختار المندوب</div>
+      <div class="cardTitle">فلتر الحساب</div>
+      <select id="itemSalesRepSelectAccFilter" onchange="renderFilteredRepSelect_('itemSalesRepSelect')">
+        <option value="">كل الحسابات</option>
+        <option value="بي تك">بي تك</option>
+        <option value="كارفور">كارفور</option>
+        <option value="المرشدي">المرشدي</option>
+      </select>
+      <div class="cardTitle" style="margin-top:10px;">اختار المندوب</div>
       <select id="itemSalesRepSelect" onchange="loadItemSalesReport(this.value, document.getElementById('itemSalesMonthSelect').value)"></select>
     </div>
     <div class="card">
@@ -1532,7 +1546,14 @@
       <select id="balancesBranchSelect" onchange="loadBalances(state.balancesRep_ || '', this.value)"></select>
     </div>
     <div class="card" id="balancesRepPickerCard" hidden>
-      <div class="cardTitle">اختار المندوب</div>
+      <div class="cardTitle">فلتر الحساب</div>
+      <select id="balancesRepSelectAccFilter" onchange="renderFilteredRepSelect_('balancesRepSelect')">
+        <option value="">كل الحسابات</option>
+        <option value="بي تك">بي تك</option>
+        <option value="كارفور">كارفور</option>
+        <option value="المرشدي">المرشدي</option>
+      </select>
+      <div class="cardTitle" style="margin-top:10px;">اختار المندوب</div>
       <select id="balancesRepSelect" onchange="loadBalances(this.value)"></select>
     </div>
     <div class="card" id="balancesSeasonFilterCard" hidden>
@@ -1604,7 +1625,14 @@
       </div>
     </div>
     <div class="card" id="attRepPickerCard" hidden>
-      <div class="cardTitle">اختار المندوب</div>
+      <div class="cardTitle">فلتر الحساب</div>
+      <select id="attRepSelectAccFilter" onchange="renderFilteredRepSelect_('attRepSelect')">
+        <option value="">كل الحسابات</option>
+        <option value="بي تك">بي تك</option>
+        <option value="كارفور">كارفور</option>
+        <option value="المرشدي">المرشدي</option>
+      </select>
+      <div class="cardTitle" style="margin-top:10px;">اختار المندوب</div>
       <select id="attRepSelect" onchange="loadAttendance_(this.value, document.getElementById('attMonthSelect').value)"></select>
     </div>
     <div class="card">
@@ -3979,6 +4007,23 @@
       return '<optgroup label="' + escapeHtml(b) + '">' + opts + '</optgroup>';
     }).join('');
   }
+  // فلتر "الحساب" (بي تك/كارفور/المرشدي) فوق قايمة اختيار المندوب — بيفلتر محليًا من غير طلب
+  // جديد للسيرفر، وبيفضل فاكر آخر قايمة مناديب جاية من السيرفر عشان يقدر يعيد الفلترة
+  var repAccFilterData_ = {};
+  function setupRepAccountFilter_(selectId, reps, selectedName, dispFn, allOptHtml){
+    repAccFilterData_[selectId] = { reps: reps || [], selected: selectedName || '', dispFn: dispFn, allOptHtml: allOptHtml || '' };
+    renderFilteredRepSelect_(selectId);
+  }
+  function renderFilteredRepSelect_(selectId){
+    var d = repAccFilterData_[selectId];
+    if(!d) return;
+    var filterEl = document.getElementById(selectId + 'AccFilter');
+    var kw = filterEl ? filterEl.value : '';
+    var reps = kw ? d.reps.filter(function(r){ return String((r && r.branch) || '').indexOf(kw) !== -1; }) : d.reps;
+    var sel = document.getElementById(selectId);
+    if(!sel) return;
+    sel.innerHTML = d.allOptHtml + buildRepOptionsByBranch_(reps, d.selected, d.dispFn);
+  }
   function loadAttendance_(repName, monthKey){
     document.getElementById('pageTitle').textContent = 'الحضور والانصراف';
     document.getElementById('pageSub').textContent = state.user.name;
@@ -3994,7 +4039,7 @@
           pickerCard.hidden = false;
           var sel = document.getElementById('attRepSelect');
           var allOpt = '<option value="__ALL__"' + (data.repName === '__ALL__' ? ' selected' : '') + '>📊 كل المناديب</option>';
-          sel.innerHTML = allOpt + buildRepOptionsByBranch_(data.reps, data.repName, dispRepName_);
+          setupRepAccountFilter_('attRepSelect', data.reps, data.repName, dispRepName_, allOpt);
         } else {
           pickerCard.hidden = true;
         }
@@ -4534,7 +4579,7 @@
         if (data.reps && data.reps.length){
           pickerCard.hidden = false;
           var sel = document.getElementById('statsRepSelect');
-          sel.innerHTML = buildRepOptionsByBranch_(data.reps, data.repName);
+          setupRepAccountFilter_('statsRepSelect', data.reps, data.repName);
         } else {
           pickerCard.hidden = true;
         }
@@ -4805,7 +4850,7 @@
           pickerCard.hidden = false;
           var sel = document.getElementById('itemSalesRepSelect');
           var allOpt = '<option value="__ALL__"' + (data.repName === '__ALL__' ? ' selected' : '') + '>📊 كل المناديب (الإجمالي)</option>';
-          sel.innerHTML = allOpt + buildRepOptionsByBranch_(data.reps, data.repName);
+          setupRepAccountFilter_('itemSalesRepSelect', data.reps, data.repName, null, allOpt);
         } else {
           pickerCard.hidden = true;
         }
@@ -5009,7 +5054,7 @@
         if (data.reps && data.reps.length){
           pickerCard.hidden = false;
           var sel = document.getElementById('balancesRepSelect');
-          sel.innerHTML = buildRepOptionsByBranch_(data.reps, data.repName);
+          setupRepAccountFilter_('balancesRepSelect', data.reps, data.repName);
         } else {
           pickerCard.hidden = true;
         }
